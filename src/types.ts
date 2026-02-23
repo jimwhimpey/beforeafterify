@@ -5,6 +5,7 @@ export interface LabelConfig {
   fontSize: number;
   color: string;
   backgroundColor: string;
+  backgroundOpacity: number; // 0–1
   padding: number;
 }
 

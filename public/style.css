@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'OperatorMonoBold';
+  src: url('/fonts/operator-mono-bold.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
 /* ── Reset & base ──────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -174,6 +181,32 @@ canvas {
   margin-top: 0.25rem;
 }
 
+/* ── Shared style bar ───────────────────────────────────────────────────────── */
+.style-bar {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.style-bar .field-row {
+  flex: 0 0 auto;
+}
+.style-bar .field-row label {
+  min-width: unset;
+  white-space: nowrap;
+}
+.style-bar input[type="number"] {
+  width: 80px;
+}
+.style-bar input[type="range"] {
+  width: 100px;
+}
+
 /* ── Generate row ───────────────────────────────────────────────────────────── */
 .generate-row {
   display: flex;
@@ -218,6 +251,14 @@ canvas {
 }
 .btn--success:hover { background: #1e7e34; }
 
+.btn--secondary {
+  background: #6c757d;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+}
+.btn--secondary:hover { background: #545b62; }
+
 /* ── Spinner ─────────────────────────────────────────────────────────────────── */
 .spinner {
   display: inline-block;
@@ -255,4 +296,15 @@ canvas {
   max-width: min(700px, 100%);
   height: auto;
   display: block;
+}
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.field-row input[type="range"] {
+  flex: 1;
+  cursor: pointer;
 }

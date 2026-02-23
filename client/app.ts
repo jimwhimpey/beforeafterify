@@ -7,6 +7,7 @@ interface LabelConfig {
   fontSize: number;
   color: string;
   backgroundColor: string;
+  backgroundOpacity: number; // 0–1
   padding: number;
 }
 
@@ -38,22 +39,25 @@ const PREVIEW_MAX_HEIGHT = 420;
 const state = {
   image1: { file: null, img: null } as ImageState,
   image2: { file: null, img: null } as ImageState,
+  delay: 1000,
   label1: {
-    text: 'Before',
+    text: 'before',
     x: 10,
     y: 10,
-    fontSize: 32,
+    fontSize: 90,
     color: '#ffffff',
     backgroundColor: '#000000',
+    backgroundOpacity: 0,
     padding: 8,
   } as LabelConfig,
   label2: {
-    text: 'After',
+    text: 'after',
     x: 10,
     y: 10,
-    fontSize: 32,
+    fontSize: 90,
     color: '#ffffff',
     backgroundColor: '#000000',
+    backgroundOpacity: 0,
     padding: 8,
   } as LabelConfig,
   drag: null as DragState | null,
@@ -72,9 +76,11 @@ function getLabelBounds(
   scale: number,
   ctx: CanvasRenderingContext2D
 ): LabelBounds {
-  ctx.font = `bold ${label.fontSize * scale}px sans-serif`;
-  const tw = ctx.measureText(label.text).width;
-  const th = label.fontSize * scale;
+  ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(label.text);
+  const tw = m.width;
+  const th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
   const p = label.padding * scale;
   const lx = label.x * scale;
   const ly = label.y * scale;
@@ -123,29 +129,36 @@ function drawPreview(
   ctx.drawImage(img, 0, 0, w, h);
 
   // Draw label
-  const sf = label.fontSize * scale;
   const p = label.padding * scale;
   ctx.save();
-  ctx.font = `bold ${sf}px sans-serif`;
-  ctx.textBaseline = 'top';
-  const tw = ctx.measureText(label.text).width;
+  ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(label.text);
+  const tw = m.width;
+  const ascent = m.actualBoundingBoxAscent;
+  const descent = m.actualBoundingBoxDescent;
   const lx = label.x * scale;
   const ly = label.y * scale;
 
+  ctx.globalAlpha = label.backgroundOpacity;
   ctx.fillStyle = label.backgroundColor;
-  ctx.fillRect(lx - p, ly - p, tw + p * 2, sf + p * 2);
+  ctx.fillRect(lx - p, ly - p, tw + p * 2, ascent + descent + p * 2);
 
+  ctx.globalAlpha = 1;
   ctx.fillStyle = label.color;
-  ctx.fillText(label.text, lx, ly);
-
-  // Subtle drag-handle outline
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 3]);
-  ctx.strokeRect(lx - p, ly - p, tw + p * 2, sf + p * 2);
-  ctx.setLineDash([]);
+  ctx.fillText(label.text, lx, ly + ascent);
 
   ctx.restore();
+}
+
+// ── Canvas redraw helper ──────────────────────────────────────────────────────
+
+function redrawCanvas(which: 1 | 2): void {
+  const canvas = document.getElementById(`preview${which}`) as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+  const img = which === 1 ? state.image1.img : state.image2.img;
+  const label = which === 1 ? state.label1 : state.label2;
+  drawPreview(canvas, ctx, img, label);
 }
 
 // ── Position display ──────────────────────────────────────────────────────────
@@ -171,8 +184,6 @@ function setupCanvas(
     if (which === 1) state.label1 = l;
     else state.label2 = l;
   };
-  const redraw = () => drawPreview(canvas, ctx, getImg(), getLabel());
-
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
     const img = getImg();
     if (!img) return;
@@ -204,9 +215,12 @@ function setupCanvas(
     if (state.drag?.which === which) {
       const newX = (mx - state.drag.offsetX) / scale;
       const newY = (my - state.drag.offsetY) / scale;
-      setLabel({ ...getLabel(), x: newX, y: newY });
-      updatePositionDisplay(which);
-      redraw();
+      state.label1 = { ...state.label1, x: newX, y: newY };
+      state.label2 = { ...state.label2, x: newX, y: newY };
+      updatePositionDisplay(1);
+      updatePositionDisplay(2);
+      redrawCanvas(1);
+      redrawCanvas(2);
     } else {
       const bounds = getLabelBounds(getLabel(), scale, ctx);
       canvas.style.cursor = hitTest(mx, my, bounds) ? 'grab' : 'default';
@@ -288,32 +302,41 @@ function checkSizeMatch(): void {
 
 // ── Label controls ────────────────────────────────────────────────────────────
 
-function setupLabelControls(which: 1 | 2): void {
-  const getLabel = () => (which === 1 ? state.label1 : state.label2);
-  const setLabel = (l: LabelConfig) => {
-    if (which === 1) state.label1 = l;
-    else state.label2 = l;
-  };
-  const getImg = () => (which === 1 ? state.image1.img : state.image2.img);
-  const canvas = document.getElementById(`preview${which}`) as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d')!;
-  const redraw = () => drawPreview(canvas, ctx, getImg(), getLabel());
+function setupLabelControls(): void {
+  // Per-frame text inputs
+  const text1El = document.getElementById('label1Text') as HTMLInputElement;
+  text1El?.addEventListener('input', () => {
+    state.label1 = { ...state.label1, text: text1El.value };
+    redrawCanvas(1);
+  });
+  const text2El = document.getElementById('label2Text') as HTMLInputElement;
+  text2El?.addEventListener('input', () => {
+    state.label2 = { ...state.label2, text: text2El.value };
+    redrawCanvas(2);
+  });
 
-  const bind = (id: string, apply: (val: string, l: LabelConfig) => LabelConfig) => {
+  // Shared style controls
+  const applyStyle = (updates: Partial<LabelConfig>) => {
+    state.label1 = { ...state.label1, ...updates };
+    state.label2 = { ...state.label2, ...updates };
+    redrawCanvas(1);
+    redrawCanvas(2);
+  };
+  const bind = (id: string, apply: (v: string) => Partial<LabelConfig>) => {
     const el = document.getElementById(id) as HTMLInputElement;
-    el?.addEventListener('input', () => {
-      setLabel(apply(el.value, getLabel()));
-      redraw();
-    });
+    el?.addEventListener('input', () => applyStyle(apply(el.value)));
   };
 
-  bind(`label${which}Text`, (v, l) => ({ ...l, text: v }));
-  bind(`label${which}Color`, (v, l) => ({ ...l, color: v }));
-  bind(`label${which}Bg`, (v, l) => ({ ...l, backgroundColor: v }));
-  bind(`label${which}Size`, (v, l) => ({
-    ...l,
-    fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 32)),
-  }));
+  bind('labelColor', (v) => ({ color: v }));
+  bind('labelBg', (v) => ({ backgroundColor: v }));
+  bind('labelBgOpacity', (v) => ({ backgroundOpacity: parseInt(v, 10) / 100 }));
+  bind('labelSize', (v) => ({ fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 90)) }));
+
+  // Delay
+  const delayEl = document.getElementById('animDelay') as HTMLInputElement;
+  delayEl?.addEventListener('input', () => {
+    state.delay = Math.max(100, parseInt(delayEl.value, 10) || 1000);
+  });
 }
 
 // ── GIF generation ────────────────────────────────────────────────────────────
@@ -337,24 +360,28 @@ async function generateGif(): Promise<void> {
     fd.append('image2', state.image2.file);
     fd.append('label1', JSON.stringify(state.label1));
     fd.append('label2', JSON.stringify(state.label2));
+    fd.append('delay', String(state.delay));
 
     const resp = await fetch('/api/generate', { method: 'POST', body: fd });
+    const body = await resp.json() as { error?: string; gifUrl?: string; image1Url?: string; image2Url?: string };
 
     if (!resp.ok) {
-      const body = (await resp.json()) as { error: string };
       throw new Error(body.error ?? 'Server error');
     }
 
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
+    const { gifUrl, image1Url, image2Url } = body;
 
     const resultSection = document.getElementById('result')!;
     const resultImg = document.getElementById('resultGif') as HTMLImageElement;
     const dlLink = document.getElementById('downloadLink') as HTMLAnchorElement;
+    const img1Link = document.getElementById('image1Link') as HTMLAnchorElement;
+    const img2Link = document.getElementById('image2Link') as HTMLAnchorElement;
 
-    resultImg.src = url;
-    dlLink.href = url;
+    resultImg.src = gifUrl!;
+    dlLink.href = gifUrl!;
     dlLink.download = 'comparison.gif';
+    if (img1Link && image1Url) { img1Link.href = image1Url; img1Link.style.display = 'inline-block'; }
+    if (img2Link && image2Url) { img2Link.href = image2Url; img2Link.style.display = 'inline-block'; }
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth' });
   } catch (err) {
@@ -385,9 +412,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const ctx1 = canvas1.getContext('2d')!;
   const ctx2 = canvas2.getContext('2d')!;
 
-  // Draw placeholders
+  // Draw placeholders (redraw once custom font is ready so text sizing is correct)
   drawPreview(canvas1, ctx1, null, state.label1);
   drawPreview(canvas2, ctx2, null, state.label2);
+  void document.fonts.ready.then(() => {
+    drawPreview(canvas1, ctx1, null, state.label1);
+    drawPreview(canvas2, ctx2, null, state.label2);
+  });
 
   // Drag-to-reposition labels
   setupCanvas(canvas1, ctx1, 1);
@@ -397,9 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupUploadArea('uploadArea1', 'fileInput1', 1);
   setupUploadArea('uploadArea2', 'fileInput2', 2);
 
-  // Label settings panels
-  setupLabelControls(1);
-  setupLabelControls(2);
+  // Label + animation settings
+  setupLabelControls();
 
   // Generate button
   document.getElementById('generateBtn')!.addEventListener('click', () => {

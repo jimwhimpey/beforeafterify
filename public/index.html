@@ -38,27 +38,13 @@
         </div>
 
         <div class="settings">
-          <h3>Label settings</h3>
-
           <div class="field-row">
-            <label for="label1Text">Text</label>
-            <input type="text" id="label1Text" value="Before" />
-          </div>
-          <div class="field-row">
-            <label for="label1Size">Size (px)</label>
-            <input type="number" id="label1Size" value="32" min="8" max="200" />
-          </div>
-          <div class="field-row">
-            <label for="label1Color">Text color</label>
-            <input type="color" id="label1Color" value="#ffffff" />
-          </div>
-          <div class="field-row">
-            <label for="label1Bg">Background</label>
-            <input type="color" id="label1Bg" value="#000000" />
+            <label for="label1Text">Label text</label>
+            <input type="text" id="label1Text" value="before" />
           </div>
           <p class="pos-hint">
             Position: (<span id="label1X">10</span>, <span id="label1Y">10</span>) px
-            &nbsp;·&nbsp; drag the label on the preview to move it
+            &nbsp;·&nbsp; drag to reposition
           </p>
         </div>
       </section>
@@ -81,32 +67,42 @@
         </div>
 
         <div class="settings">
-          <h3>Label settings</h3>
-
           <div class="field-row">
-            <label for="label2Text">Text</label>
-            <input type="text" id="label2Text" value="After" />
-          </div>
-          <div class="field-row">
-            <label for="label2Size">Size (px)</label>
-            <input type="number" id="label2Size" value="32" min="8" max="200" />
-          </div>
-          <div class="field-row">
-            <label for="label2Color">Text color</label>
-            <input type="color" id="label2Color" value="#ffffff" />
-          </div>
-          <div class="field-row">
-            <label for="label2Bg">Background</label>
-            <input type="color" id="label2Bg" value="#000000" />
+            <label for="label2Text">Label text</label>
+            <input type="text" id="label2Text" value="after" />
           </div>
           <p class="pos-hint">
             Position: (<span id="label2X">10</span>, <span id="label2Y">10</span>) px
-            &nbsp;·&nbsp; drag the label on the preview to move it
+            &nbsp;·&nbsp; drag to reposition
           </p>
         </div>
       </section>
 
     </div><!-- .panels -->
+
+    <!-- ── Shared label + animation settings ─────────────────── -->
+    <div class="style-bar">
+      <div class="field-row">
+        <label for="labelSize">Size (px)</label>
+        <input type="number" id="labelSize" value="90" min="8" max="200" />
+      </div>
+      <div class="field-row">
+        <label for="labelColor">Text color</label>
+        <input type="color" id="labelColor" value="#ffffff" />
+      </div>
+      <div class="field-row">
+        <label for="labelBg">Background</label>
+        <input type="color" id="labelBg" value="#000000" />
+      </div>
+      <div class="field-row">
+        <label for="labelBgOpacity">BG opacity</label>
+        <input type="range" id="labelBgOpacity" value="0" min="0" max="100" />
+      </div>
+      <div class="field-row">
+        <label for="animDelay">Delay (ms)</label>
+        <input type="number" id="animDelay" value="1000" min="100" max="10000" step="100" />
+      </div>
+    </div>
 
     <div class="generate-row">
       <button id="generateBtn" class="btn btn--primary">
@@ -121,9 +117,17 @@
       <div class="result-preview">
         <img id="resultGif" alt="Generated before/after GIF" />
       </div>
-      <a id="downloadLink" class="btn btn--success" download="comparison.gif">
-        Download GIF
-      </a>
+      <div class="result-actions">
+        <a id="downloadLink" class="btn btn--success" download="comparison.gif">
+          Download GIF
+        </a>
+        <a id="image1Link" class="btn btn--secondary" target="_blank" style="display:none">
+          View Before (full res)
+        </a>
+        <a id="image2Link" class="btn btn--secondary" target="_blank" style="display:none">
+          View After (full res)
+        </a>
+      </div>
     </section>
 
   </div><!-- .container -->

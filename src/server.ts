@@ -1,17 +1,33 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import GifEncoder from 'gif-encoder-2';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import type { LabelConfig } from './types';
+
+GlobalFonts.register(fs.readFileSync('/Users/jim/Library/Fonts/OperatorMono-Bold.otf'), 'OperatorMonoBold');
+
+const UPLOAD_DIR = path.join(os.tmpdir(), 'beforeafterify-uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const app = express();
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: UPLOAD_DIR,
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.fieldname}${path.extname(file.originalname)}`);
+    },
+  }),
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(UPLOAD_DIR));
+app.get('/fonts/operator-mono-bold.otf', (_req, res) => {
+  res.sendFile('/Users/jim/Library/Fonts/OperatorMono-Bold.otf');
+});
 app.use(express.json());
 
 /** Minimal interface for canvas 2D context operations we need */
@@ -19,9 +35,10 @@ interface DrawContext {
   font: string;
   textBaseline: string;
   fillStyle: string;
+  globalAlpha: number;
   save(): void;
   restore(): void;
-  measureText(text: string): { width: number };
+  measureText(text: string): { width: number; actualBoundingBoxAscent: number; actualBoundingBoxDescent: number };
   fillRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
   drawImage(image: unknown, dx: number, dy: number): void;
@@ -34,27 +51,31 @@ function drawLabel(
   canvasWidth: number,
   canvasHeight: number
 ): void {
-  const { text, x, y, fontSize, color, backgroundColor, padding } = label;
+  const { text, x, y, fontSize, color, backgroundColor, backgroundOpacity, padding } = label;
 
   ctx.save();
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  ctx.textBaseline = 'top';
+  ctx.font = `${fontSize}px OperatorMonoBold`;
+  ctx.textBaseline = 'alphabetic';
 
   const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
-  const textHeight = fontSize;
+  const ascent = metrics.actualBoundingBoxAscent;
+  const descent = metrics.actualBoundingBoxDescent;
+  const textHeight = ascent + descent;
 
-  // Clamp to keep label inside canvas
+  // Clamp to keep label inside canvas (y = top of visual bounding box)
   const clampedX = Math.max(0, Math.min(x, canvasWidth - textWidth - padding * 2));
   const clampedY = Math.max(0, Math.min(y, canvasHeight - textHeight - padding * 2));
 
-  // Background
+  // Background (with opacity)
+  ctx.globalAlpha = backgroundOpacity ?? 1;
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(clampedX - padding, clampedY - padding, textWidth + padding * 2, textHeight + padding * 2);
 
-  // Text
+  // Text (always fully opaque) — baseline at clampedY + ascent
+  ctx.globalAlpha = 1;
   ctx.fillStyle = color;
-  ctx.fillText(text, clampedX, clampedY);
+  ctx.fillText(text, clampedX, clampedY + ascent);
 
   ctx.restore();
 }
@@ -85,8 +106,8 @@ app.post(
         return;
       }
 
-      const img1 = await loadImage(files.image1[0].buffer);
-      const img2 = await loadImage(files.image2[0].buffer);
+      const img1 = await loadImage(files.image1[0].path);
+      const img2 = await loadImage(files.image2[0].path);
 
       if (img1.width !== img2.width || img1.height !== img2.height) {
         res.status(400).json({
@@ -109,21 +130,27 @@ app.post(
       ctx2.drawImage(img2, 0, 0);
       drawLabel(ctx2, label2, width, height);
 
-      // Encode animated GIF
+      // Encode animated GIF — quality 1 = best colour fidelity
+      const delay = Math.max(100, parseInt(req.body.delay as string, 10) || 1000);
       const encoder = new GifEncoder(width, height);
-      encoder.setDelay(500);
+      encoder.setDelay(delay);
       encoder.setRepeat(0);
+      encoder.setQuality(1);
       encoder.start();
       encoder.addFrame(ctx1.getImageData(0, 0, width, height).data);
       encoder.addFrame(ctx2.getImageData(0, 0, width, height).data);
       encoder.finish();
 
       const gifBuffer = encoder.out.getData();
+      const gifFilename = `${Date.now()}-comparison.gif`;
+      const gifPath = path.join(UPLOAD_DIR, gifFilename);
+      fs.writeFileSync(gifPath, Buffer.from(gifBuffer));
 
-      res.setHeader('Content-Type', 'image/gif');
-      res.setHeader('Content-Disposition', 'attachment; filename="comparison.gif"');
-      res.setHeader('Content-Length', gifBuffer.length);
-      res.send(gifBuffer);
+      res.json({
+        gifUrl: `/uploads/${gifFilename}`,
+        image1Url: `/uploads/${files.image1[0].filename}`,
+        image2Url: `/uploads/${files.image2[0].filename}`,
+      });
     } catch (error) {
       console.error('Error generating GIF:', error);
       res.status(500).json({ error: 'Failed to generate GIF' });
