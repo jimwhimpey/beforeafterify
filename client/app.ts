@@ -249,10 +249,12 @@ function loadImageFile(file: File, which: 1 | 2): void {
       if (which === 1) {
         state.image1 = { file, img };
         const canvas = document.getElementById('preview1') as HTMLCanvasElement;
+        (canvas.parentElement as HTMLElement).style.display = '';
         drawPreview(canvas, canvas.getContext('2d')!, img, state.label1);
       } else {
         state.image2 = { file, img };
         const canvas = document.getElementById('preview2') as HTMLCanvasElement;
+        (canvas.parentElement as HTMLElement).style.display = '';
         drawPreview(canvas, canvas.getContext('2d')!, img, state.label2);
       }
       checkSizeMatch();
@@ -411,14 +413,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvas2 = document.getElementById('preview2') as HTMLCanvasElement;
   const ctx1 = canvas1.getContext('2d')!;
   const ctx2 = canvas2.getContext('2d')!;
-
-  // Draw placeholders (redraw once custom font is ready so text sizing is correct)
-  drawPreview(canvas1, ctx1, null, state.label1);
-  drawPreview(canvas2, ctx2, null, state.label2);
-  void document.fonts.ready.then(() => {
-    drawPreview(canvas1, ctx1, null, state.label1);
-    drawPreview(canvas2, ctx2, null, state.label2);
-  });
 
   // Drag-to-reposition labels
   setupCanvas(canvas1, ctx1, 1);
