@@ -5,7 +5,7 @@ module.exports = {
       script: 'dist/server.js',
       cwd: '/Users/jim/Sites/beforeafterify',
       env: {
-        PORT: 3002,
+        PORT: 3003,
         NODE_ENV: 'production',
       },
       restart_delay: 3000,
