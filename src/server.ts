@@ -117,28 +117,30 @@ app.post(
       }
 
       const { width, height } = img1;
+      const gifWidth = Math.round(width * 0.5);
+      const gifHeight = Math.round(height * 0.5);
 
       // Build frame 1
-      const canvas1 = createCanvas(width, height);
+      const canvas1 = createCanvas(gifWidth, gifHeight);
       const ctx1 = canvas1.getContext('2d') as unknown as DrawContext;
-      ctx1.drawImage(img1, 0, 0);
-      drawLabel(ctx1, label1, width, height);
+      ctx1.drawImage(img1, 0, 0, gifWidth, gifHeight);
+      drawLabel(ctx1, label1, gifWidth, gifHeight);
 
       // Build frame 2
-      const canvas2 = createCanvas(width, height);
+      const canvas2 = createCanvas(gifWidth, gifHeight);
       const ctx2 = canvas2.getContext('2d') as unknown as DrawContext;
-      ctx2.drawImage(img2, 0, 0);
-      drawLabel(ctx2, label2, width, height);
+      ctx2.drawImage(img2, 0, 0, gifWidth, gifHeight);
+      drawLabel(ctx2, label2, gifWidth, gifHeight);
 
-      // Encode animated GIF — quality 1 = best colour fidelity
+      // Encode animated GIF at 50% size — quality 1 = best colour fidelity
       const delay = Math.max(100, parseInt(req.body.delay as string, 10) || 1000);
-      const encoder = new GifEncoder(width, height);
+      const encoder = new GifEncoder(gifWidth, gifHeight);
       encoder.setDelay(delay);
       encoder.setRepeat(0);
       encoder.setQuality(1);
       encoder.start();
-      encoder.addFrame(ctx1.getImageData(0, 0, width, height).data);
-      encoder.addFrame(ctx2.getImageData(0, 0, width, height).data);
+      encoder.addFrame(ctx1.getImageData(0, 0, gifWidth, gifHeight).data);
+      encoder.addFrame(ctx2.getImageData(0, 0, gifWidth, gifHeight).data);
       encoder.finish();
 
       const gifBuffer = encoder.out.getData();
