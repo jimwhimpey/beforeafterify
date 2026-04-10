@@ -7,7 +7,8 @@ import fs from 'fs';
 import os from 'os';
 import type { LabelConfig } from './types';
 
-GlobalFonts.register(fs.readFileSync('/Users/jim/Library/Fonts/OperatorMono-Bold.otf'), 'OperatorMonoBold');
+const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
+GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
 
 const UPLOAD_DIR = path.join(os.tmpdir(), 'beforeafterify-uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -26,7 +27,7 @@ const upload = multer({
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.get('/fonts/operator-mono-bold.otf', (_req, res) => {
-  res.sendFile('/Users/jim/Library/Fonts/OperatorMono-Bold.otf');
+  res.sendFile(FONT_PATH);
 });
 app.use(express.json());
 

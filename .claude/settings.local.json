@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/jwhimpey/Library/Fonts/**)",
+      "Read(//Library/Fonts/**)",
+      "Bash(mkdir -p /Users/jwhimpey/Sites/beforeafterify/fonts)",
+      "Bash(cp /Users/jwhimpey/Library/Fonts/OperatorMono-Bold.otf /Users/jwhimpey/Sites/beforeafterify/fonts/)"
+    ]
+  }
+}
