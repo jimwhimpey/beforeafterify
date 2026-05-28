@@ -42,7 +42,7 @@ interface DrawContext {
   measureText(text: string): { width: number; actualBoundingBoxAscent: number; actualBoundingBoxDescent: number };
   fillRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
-  drawImage(image: unknown, dx: number, dy: number): void;
+  drawImage(image: unknown, dx: number, dy: number, dw?: number, dh?: number): void;
   getImageData(sx: number, sy: number, sw: number, sh: number): { data: Uint8ClampedArray };
 }
 
@@ -50,9 +50,14 @@ function drawLabel(
   ctx: DrawContext,
   label: LabelConfig,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  scale: number
 ): void {
-  const { text, x, y, fontSize, color, backgroundColor, backgroundOpacity, padding } = label;
+  const { text, color, backgroundColor, backgroundOpacity } = label;
+  const fontSize = label.fontSize * scale;
+  const x = label.x * scale;
+  const y = label.y * scale;
+  const padding = label.padding * scale;
 
   ctx.save();
   ctx.font = `${fontSize}px OperatorMonoBold`;
@@ -118,20 +123,21 @@ app.post(
       }
 
       const { width, height } = img1;
-      const gifWidth = Math.round(width * 0.5);
-      const gifHeight = Math.round(height * 0.5);
+      const scale = 0.5;
+      const gifWidth = Math.round(width * scale);
+      const gifHeight = Math.round(height * scale);
 
       // Build frame 1
       const canvas1 = createCanvas(gifWidth, gifHeight);
       const ctx1 = canvas1.getContext('2d') as unknown as DrawContext;
       ctx1.drawImage(img1, 0, 0, gifWidth, gifHeight);
-      drawLabel(ctx1, label1, gifWidth, gifHeight);
+      drawLabel(ctx1, label1, gifWidth, gifHeight, scale);
 
       // Build frame 2
       const canvas2 = createCanvas(gifWidth, gifHeight);
       const ctx2 = canvas2.getContext('2d') as unknown as DrawContext;
       ctx2.drawImage(img2, 0, 0, gifWidth, gifHeight);
-      drawLabel(ctx2, label2, gifWidth, gifHeight);
+      drawLabel(ctx2, label2, gifWidth, gifHeight, scale);
 
       // Encode animated GIF at 50% size — quality 1 = best colour fidelity
       const delay = Math.max(100, parseInt(req.body.delay as string, 10) || 1000);

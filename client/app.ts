@@ -165,10 +165,34 @@ function redrawCanvas(which: 1 | 2): void {
 
 function updatePositionDisplay(which: 1 | 2): void {
   const label = which === 1 ? state.label1 : state.label2;
-  const xEl = document.getElementById(`label${which}X`);
-  const yEl = document.getElementById(`label${which}Y`);
-  if (xEl) xEl.textContent = Math.round(label.x).toString();
-  if (yEl) yEl.textContent = Math.round(label.y).toString();
+  const xEl = document.getElementById(`label${which}X`) as HTMLInputElement | null;
+  const yEl = document.getElementById(`label${which}Y`) as HTMLInputElement | null;
+  if (xEl && document.activeElement !== xEl) xEl.value = Math.round(label.x).toString();
+  if (yEl && document.activeElement !== yEl) yEl.value = Math.round(label.y).toString();
+}
+
+function setupPositionInputs(): void {
+  const apply = (x: number, y: number) => {
+    state.label1 = { ...state.label1, x, y };
+    state.label2 = { ...state.label2, x, y };
+    updatePositionDisplay(1);
+    updatePositionDisplay(2);
+    redrawCanvas(1);
+    redrawCanvas(2);
+  };
+  const bind = (which: 1 | 2) => {
+    const xEl = document.getElementById(`label${which}X`) as HTMLInputElement | null;
+    const yEl = document.getElementById(`label${which}Y`) as HTMLInputElement | null;
+    const handler = () => {
+      const x = parseInt(xEl?.value ?? '', 10);
+      const y = parseInt(yEl?.value ?? '', 10);
+      if (Number.isFinite(x) && Number.isFinite(y)) apply(x, y);
+    };
+    xEl?.addEventListener('input', handler);
+    yEl?.addEventListener('input', handler);
+  };
+  bind(1);
+  bind(2);
 }
 
 // ── Canvas interaction ────────────────────────────────────────────────────────
@@ -424,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Label + animation settings
   setupLabelControls();
+  setupPositionInputs();
 
   // Generate button
   document.getElementById('generateBtn')!.addEventListener('click', () => {

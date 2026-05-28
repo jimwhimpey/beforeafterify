@@ -181,6 +181,38 @@ canvas {
   margin-top: 0.25rem;
 }
 
+.pos-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+.pos-label {
+  min-width: 90px;
+  flex-shrink: 0;
+}
+.pos-input {
+  width: 64px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  background: #fafafa;
+  color: #111;
+  transition: border-color 0.15s;
+}
+.pos-input:focus {
+  outline: none;
+  border-color: #4f8ef7;
+  background: #fff;
+}
+.pos-unit {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
 /* ── Shared style bar ───────────────────────────────────────────────────────── */
 .style-bar {
   background: #fff;
