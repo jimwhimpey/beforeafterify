@@ -3,15 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Before / After GIF Maker</title>
+  <title>beforeafterify</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='48' height='100' rx='12' fill='%23F2A65A'/><rect x='52' width='48' height='100' rx='12' fill='%2346D4BE'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
 
     <header>
-      <h1>Before / After GIF Maker</h1>
-      <p>Upload two same-size images to create a two-frame animated comparison GIF.<br>
+      <div class="wordmark">
+        <span class="stamp" aria-hidden="true">
+          <span class="stamp__word stamp__word--before">before</span>
+          <span class="stamp__word stamp__word--after">after</span>
+        </span>
+        <h1><span class="wm-before">before</span><span class="wm-after">after</span><span class="wm-ify">ify</span></h1>
+      </div>
+      <p>Two frames in, one blinking comparison GIF out.<br>
          Drag the label on each preview to reposition it.</p>
     </header>
 
@@ -21,8 +31,8 @@
     <div class="panels">
 
       <!-- ── Image 1 ─────────────────────────────────────────── -->
-      <section class="panel">
-        <h2>Frame 1</h2>
+      <section class="panel panel--before">
+        <h2><span class="frame-dot" aria-hidden="true"></span>Frame 1</h2>
 
         <div id="uploadArea1" class="upload-area" role="button" tabindex="0"
              aria-label="Upload frame 1 image">
@@ -52,8 +62,8 @@
       </section>
 
       <!-- ── Image 2 ─────────────────────────────────────────── -->
-      <section class="panel">
-        <h2>Frame 2</h2>
+      <section class="panel panel--after">
+        <h2><span class="frame-dot" aria-hidden="true"></span>Frame 2</h2>
 
         <div id="uploadArea2" class="upload-area" role="button" tabindex="0"
              aria-label="Upload frame 2 image">
@@ -86,6 +96,7 @@
 
     <!-- ── Shared label + animation settings ─────────────────── -->
     <div class="style-bar">
+      <span class="style-bar__title">Label &amp; timing</span>
       <div class="field-row">
         <label for="labelSize">Size (px)</label>
         <input type="number" id="labelSize" value="90" min="8" max="200" />
