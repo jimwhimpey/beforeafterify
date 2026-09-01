@@ -279,6 +279,13 @@ canvas {
   cursor: pointer;
   accent-color: var(--after);
 }
+.hex-value {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
 
 .pos-row {
   display: flex;

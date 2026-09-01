@@ -5,7 +5,7 @@ import GifEncoder from 'gif-encoder-2';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import type { CanvasExtend, LabelConfig } from './types';
+import type { CanvasExtend, LabelConfig, TextExtents } from './types';
 
 const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
 GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
@@ -90,12 +90,25 @@ function roundedRectPath(
   ctx.closePath();
 }
 
+/** Text extents of a label at output scale, in canvas pixels. */
+function measureLabelText(ctx: DrawContext, label: LabelConfig, scale: number): TextExtents {
+  ctx.font = `${label.fontSize * scale}px OperatorMonoBold`;
+  const m = ctx.measureText(label.text);
+  return { width: m.width, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
+}
+
+/**
+ * Both frames share `box` — the extents of the widest and tallest of the two
+ * labels — so the chips stay identical between frames, with each label's text
+ * centred inside.
+ */
 function drawLabel(
   ctx: DrawContext,
   label: LabelConfig,
   canvasWidth: number,
   canvasHeight: number,
-  scale: number
+  scale: number,
+  box: TextExtents
 ): void {
   const { text, color, backgroundColor, backgroundOpacity } = label;
   const fontSize = label.fontSize * scale;
@@ -111,12 +124,11 @@ function drawLabel(
   const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
   const ascent = metrics.actualBoundingBoxAscent;
-  const descent = metrics.actualBoundingBoxDescent;
-  const textHeight = ascent + descent;
+  const textHeight = ascent + metrics.actualBoundingBoxDescent;
 
-  // Clamp to keep label inside canvas (y = top of visual bounding box)
-  const clampedX = Math.max(0, Math.min(x, canvasWidth - textWidth - padding * 2));
-  const clampedY = Math.max(0, Math.min(y, canvasHeight - textHeight - padding * 2));
+  // Clamp to keep the chip inside the canvas (y = top of the chip's text area)
+  const clampedX = Math.max(0, Math.min(x, canvasWidth - box.width - padding * 2));
+  const clampedY = Math.max(0, Math.min(y, canvasHeight - box.height - padding * 2));
 
   // Background (with opacity)
   ctx.globalAlpha = backgroundOpacity ?? 1;
@@ -125,16 +137,20 @@ function drawLabel(
     ctx,
     clampedX - padding,
     clampedY - padding,
-    textWidth + padding * 2,
-    textHeight + padding * 2,
+    box.width + padding * 2,
+    box.height + padding * 2,
     radius
   );
   ctx.fill();
 
-  // Text (always fully opaque) — baseline at clampedY + ascent
+  // Text (always fully opaque), centred in the shared chip
   ctx.globalAlpha = 1;
   ctx.fillStyle = color;
-  ctx.fillText(text, clampedX, clampedY + ascent);
+  ctx.fillText(
+    text,
+    clampedX + (box.width - textWidth) / 2,
+    clampedY + (box.height - textHeight) / 2 + ascent
+  );
 
   ctx.restore();
 }
@@ -185,13 +201,21 @@ app.post(
       const imageX = Math.round(extend.left * scale);
       const imageY = Math.round(extend.top * scale);
 
+      const measureCtx = createCanvas(1, 1).getContext('2d') as unknown as DrawContext;
+      const extents1 = measureLabelText(measureCtx, label1, scale);
+      const extents2 = measureLabelText(measureCtx, label2, scale);
+      const box: TextExtents = {
+        width: Math.max(extents1.width, extents2.width),
+        height: Math.max(extents1.height, extents2.height),
+      };
+
       const drawFrame = (image: unknown, label: LabelConfig): DrawContext => {
         const canvas = createCanvas(gifWidth, gifHeight);
         const ctx = canvas.getContext('2d') as unknown as DrawContext;
         ctx.fillStyle = CANVAS_BACKGROUND;
         ctx.fillRect(0, 0, gifWidth, gifHeight);
         ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-        drawLabel(ctx, label, gifWidth, gifHeight, scale);
+        drawLabel(ctx, label, gifWidth, gifHeight, scale, box);
         return ctx;
       };
 

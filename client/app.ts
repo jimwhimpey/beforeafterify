@@ -24,6 +24,12 @@ interface CanvasSize {
   height: number;
 }
 
+/** Measured size of a label's text, in canvas pixels. */
+interface TextExtents {
+  width: number;
+  height: number;
+}
+
 interface ImageState {
   file: File | null;
   img: HTMLImageElement | null;
@@ -64,7 +70,7 @@ const state = {
     y: 10,
     fontSize: 90,
     color: '#000000',
-    backgroundColor: '#000000',
+    backgroundColor: '#B51A00',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
   } as LabelConfig,
@@ -74,7 +80,7 @@ const state = {
     y: 10,
     fontSize: 90,
     color: '#000000',
-    backgroundColor: '#000000',
+    backgroundColor: '#4F7A28',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
   } as LabelConfig,
@@ -99,24 +105,39 @@ function getPreviewScale(img: HTMLImageElement): number {
   return Math.min(sx, sy, 1); // never upscale
 }
 
+/** Text extents of a label at preview scale, in canvas pixels. */
+function measureLabelText(
+  ctx: CanvasRenderingContext2D,
+  label: LabelConfig,
+  scale: number
+): TextExtents {
+  ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(label.text);
+  return { width: m.width, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
+}
+
+/** Both chips size to the widest and tallest label so they don't resize between frames. */
+function getLabelBox(ctx: CanvasRenderingContext2D, scale: number): TextExtents {
+  const a = measureLabelText(ctx, state.label1, scale);
+  const b = measureLabelText(ctx, state.label2, scale);
+  return { width: Math.max(a.width, b.width), height: Math.max(a.height, b.height) };
+}
+
 function getLabelBounds(
   label: LabelConfig,
   scale: number,
   ctx: CanvasRenderingContext2D
 ): LabelBounds {
-  ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
-  ctx.textBaseline = 'alphabetic';
-  const m = ctx.measureText(label.text);
-  const tw = m.width;
-  const th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+  const box = getLabelBox(ctx, scale);
   const p = label.padding * scale;
   const lx = label.x * scale;
   const ly = label.y * scale;
   return {
     left: lx - p,
     top: ly - p,
-    right: lx + tw + p,
-    bottom: ly + th + p,
+    right: lx + box.width + p,
+    bottom: ly + box.height + p,
   };
 }
 
@@ -186,23 +207,24 @@ function drawPreview(
   // Draw label
   const p = label.padding * scale;
   ctx.save();
+  const box = getLabelBox(ctx, scale);
   ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
   ctx.textBaseline = 'alphabetic';
   const m = ctx.measureText(label.text);
   const tw = m.width;
   const ascent = m.actualBoundingBoxAscent;
-  const descent = m.actualBoundingBoxDescent;
+  const th = ascent + m.actualBoundingBoxDescent;
   const lx = label.x * scale;
   const ly = label.y * scale;
 
   ctx.globalAlpha = label.backgroundOpacity;
   ctx.fillStyle = label.backgroundColor;
-  roundedRectPath(ctx, lx - p, ly - p, tw + p * 2, ascent + descent + p * 2, LABEL_CORNER_RADIUS * scale);
+  roundedRectPath(ctx, lx - p, ly - p, box.width + p * 2, box.height + p * 2, LABEL_CORNER_RADIUS * scale);
   ctx.fill();
 
   ctx.globalAlpha = 1;
   ctx.fillStyle = label.color;
-  ctx.fillText(label.text, lx, ly + ascent);
+  ctx.fillText(label.text, lx + (box.width - tw) / 2, ly + (box.height - th) / 2 + ascent);
 
   ctx.restore();
 }
@@ -398,16 +420,44 @@ function checkSizeMatch(): void {
 
 // ── Label controls ────────────────────────────────────────────────────────────
 
+/** Wires a colour picker to its hex readout (`<id>Hex`) and to the state it drives. */
+function bindColorInput(id: string, apply: (value: string) => void): void {
+  const el = document.getElementById(id) as HTMLInputElement | null;
+  const hexEl = document.getElementById(`${id}Hex`);
+  if (!el) return;
+  const showHex = () => {
+    if (hexEl) hexEl.textContent = el.value;
+  };
+  el.addEventListener('input', () => {
+    showHex();
+    apply(el.value);
+  });
+  showHex();
+}
+
 function setupLabelControls(): void {
   // Per-frame text inputs
+  // Editing either text resizes both chips, so both previews redraw.
   const text1El = document.getElementById('label1Text') as HTMLInputElement;
   text1El?.addEventListener('input', () => {
     state.label1 = { ...state.label1, text: text1El.value };
     redrawCanvas(1);
+    redrawCanvas(2);
   });
   const text2El = document.getElementById('label2Text') as HTMLInputElement;
   text2El?.addEventListener('input', () => {
     state.label2 = { ...state.label2, text: text2El.value };
+    redrawCanvas(1);
+    redrawCanvas(2);
+  });
+
+  // Per-frame background colours
+  bindColorInput('label1Bg', (v) => {
+    state.label1 = { ...state.label1, backgroundColor: v };
+    redrawCanvas(1);
+  });
+  bindColorInput('label2Bg', (v) => {
+    state.label2 = { ...state.label2, backgroundColor: v };
     redrawCanvas(2);
   });
 
@@ -423,8 +473,7 @@ function setupLabelControls(): void {
     el?.addEventListener('input', () => applyStyle(apply(el.value)));
   };
 
-  bind('labelColor', (v) => ({ color: v }));
-  bind('labelBg', (v) => ({ backgroundColor: v }));
+  bindColorInput('labelColor', (v) => applyStyle({ color: v }));
   bind('labelBgOpacity', (v) => ({ backgroundOpacity: parseInt(v, 10) / 100 }));
   bind('labelSize', (v) => ({ fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 90)) }));
   bind('labelPadding', (v) => {

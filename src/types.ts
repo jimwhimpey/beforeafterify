@@ -9,6 +9,12 @@ export interface LabelConfig {
   padding: number;
 }
 
+/** Measured size of a label's text, in canvas pixels. */
+export interface TextExtents {
+  width: number;
+  height: number;
+}
+
 /** Blank margin added around the image, in original image pixels. */
 export interface CanvasExtend {
   top: number;
