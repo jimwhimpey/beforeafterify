@@ -5,10 +5,14 @@ import GifEncoder from 'gif-encoder-2';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import type { LabelConfig } from './types';
+import type { CanvasExtend, LabelConfig } from './types';
 
 const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
 GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
+
+const LABEL_CORNER_RADIUS = 12; // in canvas pixels
+const CANVAS_BACKGROUND = '#ffffff';
+const NO_EXTEND: CanvasExtend = { top: 0, right: 0, bottom: 0, left: 0 };
 
 const UPLOAD_DIR = path.join(os.tmpdir(), 'beforeafterify-uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -41,9 +45,49 @@ interface DrawContext {
   restore(): void;
   measureText(text: string): { width: number; actualBoundingBoxAscent: number; actualBoundingBoxDescent: number };
   fillRect(x: number, y: number, w: number, h: number): void;
+  beginPath(): void;
+  moveTo(x: number, y: number): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  closePath(): void;
+  fill(): void;
   fillText(text: string, x: number, y: number): void;
   drawImage(image: unknown, dx: number, dy: number, dw?: number, dh?: number): void;
   getImageData(sx: number, sy: number, sw: number, sh: number): { data: Uint8ClampedArray };
+}
+
+function parseExtend(raw: unknown): CanvasExtend {
+  if (typeof raw !== 'string') return NO_EXTEND;
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<keyof CanvasExtend, unknown>>;
+    const side = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+    return {
+      top: side(parsed.top),
+      right: side(parsed.right),
+      bottom: side(parsed.bottom),
+      left: side(parsed.left),
+    };
+  } catch {
+    return NO_EXTEND;
+  }
+}
+
+/** Traces a rounded rectangle, clamping the radius to what the box can fit. */
+function roundedRectPath(
+  ctx: DrawContext,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number
+): void {
+  const r = Math.min(radius, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function drawLabel(
@@ -58,6 +102,7 @@ function drawLabel(
   const x = label.x * scale;
   const y = label.y * scale;
   const padding = label.padding * scale;
+  const radius = LABEL_CORNER_RADIUS * scale;
 
   ctx.save();
   ctx.font = `${fontSize}px OperatorMonoBold`;
@@ -76,7 +121,15 @@ function drawLabel(
   // Background (with opacity)
   ctx.globalAlpha = backgroundOpacity ?? 1;
   ctx.fillStyle = backgroundColor;
-  ctx.fillRect(clampedX - padding, clampedY - padding, textWidth + padding * 2, textHeight + padding * 2);
+  roundedRectPath(
+    ctx,
+    clampedX - padding,
+    clampedY - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2,
+    radius
+  );
+  ctx.fill();
 
   // Text (always fully opaque) — baseline at clampedY + ascent
   ctx.globalAlpha = 1;
@@ -122,22 +175,28 @@ app.post(
         return;
       }
 
+      const extend = parseExtend(req.body.extend);
       const { width, height } = img1;
       const scale = 0.5;
-      const gifWidth = Math.round(width * scale);
-      const gifHeight = Math.round(height * scale);
+      const gifWidth = Math.round((width + extend.left + extend.right) * scale);
+      const gifHeight = Math.round((height + extend.top + extend.bottom) * scale);
+      const imageWidth = Math.round(width * scale);
+      const imageHeight = Math.round(height * scale);
+      const imageX = Math.round(extend.left * scale);
+      const imageY = Math.round(extend.top * scale);
 
-      // Build frame 1
-      const canvas1 = createCanvas(gifWidth, gifHeight);
-      const ctx1 = canvas1.getContext('2d') as unknown as DrawContext;
-      ctx1.drawImage(img1, 0, 0, gifWidth, gifHeight);
-      drawLabel(ctx1, label1, gifWidth, gifHeight, scale);
+      const drawFrame = (image: unknown, label: LabelConfig): DrawContext => {
+        const canvas = createCanvas(gifWidth, gifHeight);
+        const ctx = canvas.getContext('2d') as unknown as DrawContext;
+        ctx.fillStyle = CANVAS_BACKGROUND;
+        ctx.fillRect(0, 0, gifWidth, gifHeight);
+        ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+        drawLabel(ctx, label, gifWidth, gifHeight, scale);
+        return ctx;
+      };
 
-      // Build frame 2
-      const canvas2 = createCanvas(gifWidth, gifHeight);
-      const ctx2 = canvas2.getContext('2d') as unknown as DrawContext;
-      ctx2.drawImage(img2, 0, 0, gifWidth, gifHeight);
-      drawLabel(ctx2, label2, gifWidth, gifHeight, scale);
+      const ctx1 = drawFrame(img1, label1);
+      const ctx2 = drawFrame(img2, label2);
 
       // Encode animated GIF at 50% size — quality 1 = best colour fidelity
       const delay = Math.max(100, parseInt(req.body.delay as string, 10) || 1000);

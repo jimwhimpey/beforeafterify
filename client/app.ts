@@ -2,13 +2,26 @@
 
 interface LabelConfig {
   text: string;
-  x: number; // top-left x in original image pixels
-  y: number; // top-left y in original image pixels
+  x: number; // top-left x in canvas pixels
+  y: number; // top-left y in canvas pixels
   fontSize: number;
   color: string;
   backgroundColor: string;
   backgroundOpacity: number; // 0–1
   padding: number;
+}
+
+/** Blank margin added around the image, in original image pixels. */
+interface CanvasExtend {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+interface CanvasSize {
+  width: number;
+  height: number;
 }
 
 interface ImageState {
@@ -33,6 +46,10 @@ interface LabelBounds {
 
 const PREVIEW_MAX_WIDTH = 560;
 const PREVIEW_MAX_HEIGHT = 420;
+const LABEL_CORNER_RADIUS = 12; // in canvas pixels
+const DEFAULT_LABEL_PADDING = 30;
+const CANVAS_BACKGROUND = '#ffffff';
+const EXTEND_SIDES = ['top', 'right', 'bottom', 'left'] as const;
 
 // ── App State ─────────────────────────────────────────────────────────────────
 
@@ -40,34 +57,45 @@ const state = {
   image1: { file: null, img: null } as ImageState,
   image2: { file: null, img: null } as ImageState,
   delay: 1000,
+  extend: { top: 0, right: 0, bottom: 0, left: 0 } as CanvasExtend,
   label1: {
     text: 'before',
     x: 10,
     y: 10,
     fontSize: 90,
-    color: '#ffffff',
+    color: '#000000',
     backgroundColor: '#000000',
-    backgroundOpacity: 0,
-    padding: 8,
+    backgroundOpacity: 0.9,
+    padding: DEFAULT_LABEL_PADDING,
   } as LabelConfig,
   label2: {
     text: 'after',
     x: 10,
     y: 10,
     fontSize: 90,
-    color: '#ffffff',
+    color: '#000000',
     backgroundColor: '#000000',
-    backgroundOpacity: 0,
-    padding: 8,
+    backgroundOpacity: 0.9,
+    padding: DEFAULT_LABEL_PADDING,
   } as LabelConfig,
   drag: null as DragState | null,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Full canvas size: the image plus any blank extension around it. */
+function getCanvasSize(img: HTMLImageElement): CanvasSize {
+  const { top, right, bottom, left } = state.extend;
+  return {
+    width: img.naturalWidth + left + right,
+    height: img.naturalHeight + top + bottom,
+  };
+}
+
 function getPreviewScale(img: HTMLImageElement): number {
-  const sx = PREVIEW_MAX_WIDTH / img.naturalWidth;
-  const sy = PREVIEW_MAX_HEIGHT / img.naturalHeight;
+  const { width, height } = getCanvasSize(img);
+  const sx = PREVIEW_MAX_WIDTH / width;
+  const sy = PREVIEW_MAX_HEIGHT / height;
   return Math.min(sx, sy, 1); // never upscale
 }
 
@@ -96,6 +124,24 @@ function hitTest(mx: number, my: number, b: LabelBounds): boolean {
   return mx >= b.left && mx <= b.right && my >= b.top && my <= b.bottom;
 }
 
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number
+): void {
+  const r = Math.min(radius, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 // ── Drawing ───────────────────────────────────────────────────────────────────
 
 function drawPreview(
@@ -120,13 +166,22 @@ function drawPreview(
   }
 
   const scale = getPreviewScale(img);
-  const w = Math.round(img.naturalWidth * scale);
-  const h = Math.round(img.naturalHeight * scale);
+  const size = getCanvasSize(img);
+  const w = Math.round(size.width * scale);
+  const h = Math.round(size.height * scale);
 
   canvas.width = w;
   canvas.height = h;
 
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.fillStyle = CANVAS_BACKGROUND;
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(
+    img,
+    Math.round(state.extend.left * scale),
+    Math.round(state.extend.top * scale),
+    Math.round(img.naturalWidth * scale),
+    Math.round(img.naturalHeight * scale)
+  );
 
   // Draw label
   const p = label.padding * scale;
@@ -142,7 +197,8 @@ function drawPreview(
 
   ctx.globalAlpha = label.backgroundOpacity;
   ctx.fillStyle = label.backgroundColor;
-  ctx.fillRect(lx - p, ly - p, tw + p * 2, ascent + descent + p * 2);
+  roundedRectPath(ctx, lx - p, ly - p, tw + p * 2, ascent + descent + p * 2, LABEL_CORNER_RADIUS * scale);
+  ctx.fill();
 
   ctx.globalAlpha = 1;
   ctx.fillStyle = label.color;
@@ -193,6 +249,20 @@ function setupPositionInputs(): void {
   };
   bind(1);
   bind(2);
+}
+
+// ── Canvas extension ──────────────────────────────────────────────────────────
+
+function setupExtendControls(): void {
+  for (const side of EXTEND_SIDES) {
+    const el = document.getElementById(`extend${side[0].toUpperCase()}${side.slice(1)}`) as HTMLInputElement | null;
+    el?.addEventListener('input', () => {
+      const n = parseInt(el.value, 10);
+      state.extend = { ...state.extend, [side]: Number.isFinite(n) ? Math.max(0, n) : 0 };
+      redrawCanvas(1);
+      redrawCanvas(2);
+    });
+  }
 }
 
 // ── Canvas interaction ────────────────────────────────────────────────────────
@@ -357,6 +427,10 @@ function setupLabelControls(): void {
   bind('labelBg', (v) => ({ backgroundColor: v }));
   bind('labelBgOpacity', (v) => ({ backgroundOpacity: parseInt(v, 10) / 100 }));
   bind('labelSize', (v) => ({ fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 90)) }));
+  bind('labelPadding', (v) => {
+    const n = parseInt(v, 10);
+    return { padding: Number.isFinite(n) ? Math.max(0, Math.min(200, n)) : DEFAULT_LABEL_PADDING };
+  });
 
   // Delay
   const delayEl = document.getElementById('animDelay') as HTMLInputElement;
@@ -387,6 +461,7 @@ async function generateGif(): Promise<void> {
     fd.append('label1', JSON.stringify(state.label1));
     fd.append('label2', JSON.stringify(state.label2));
     fd.append('delay', String(state.delay));
+    fd.append('extend', JSON.stringify(state.extend));
 
     const resp = await fetch('/api/generate', { method: 'POST', body: fd });
     const body = await resp.json() as { error?: string; gifUrl?: string; image1Url?: string; image2Url?: string };
@@ -449,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Label + animation settings
   setupLabelControls();
   setupPositionInputs();
+  setupExtendControls();
 
   // Generate button
   document.getElementById('generateBtn')!.addEventListener('click', () => {

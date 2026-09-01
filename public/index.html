@@ -102,8 +102,12 @@
         <input type="number" id="labelSize" value="90" min="8" max="200" />
       </div>
       <div class="field-row">
+        <label for="labelPadding">Padding (px)</label>
+        <input type="number" id="labelPadding" value="30" min="0" max="200" />
+      </div>
+      <div class="field-row">
         <label for="labelColor">Text color</label>
-        <input type="color" id="labelColor" value="#ffffff" />
+        <input type="color" id="labelColor" value="#000000" />
       </div>
       <div class="field-row">
         <label for="labelBg">Background</label>
@@ -111,11 +115,32 @@
       </div>
       <div class="field-row">
         <label for="labelBgOpacity">BG opacity</label>
-        <input type="range" id="labelBgOpacity" value="0" min="0" max="100" />
+        <input type="range" id="labelBgOpacity" value="90" min="0" max="100" />
       </div>
       <div class="field-row">
         <label for="animDelay">Delay (ms)</label>
         <input type="number" id="animDelay" value="1000" min="100" max="10000" step="100" />
+      </div>
+    </div>
+
+    <!-- ── Blank canvas extension ────────────────────────────── -->
+    <div class="style-bar">
+      <span class="style-bar__title">Extend canvas (px)</span>
+      <div class="field-row">
+        <label for="extendTop">Top</label>
+        <input type="number" id="extendTop" value="0" min="0" max="2000" step="10" />
+      </div>
+      <div class="field-row">
+        <label for="extendRight">Right</label>
+        <input type="number" id="extendRight" value="0" min="0" max="2000" step="10" />
+      </div>
+      <div class="field-row">
+        <label for="extendBottom">Bottom</label>
+        <input type="number" id="extendBottom" value="0" min="0" max="2000" step="10" />
+      </div>
+      <div class="field-row">
+        <label for="extendLeft">Left</label>
+        <input type="number" id="extendLeft" value="0" min="0" max="2000" step="10" />
       </div>
     </div>
 
