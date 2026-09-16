@@ -5,7 +5,7 @@ import GifEncoder from 'gif-encoder-2';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import type { CanvasExtend, LabelConfig, TextExtents } from './types';
+import type { CanvasExtend, LabelConfig, TextAlign, TextExtents } from './types';
 
 const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
 GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
@@ -95,6 +95,13 @@ function roundedRectPath(
   ctx.closePath();
 }
 
+/** Horizontal offset of text within the shared chip, for a given alignment. */
+function alignedTextX(align: TextAlign, boxWidth: number, textWidth: number): number {
+  if (align === 'left') return 0;
+  if (align === 'right') return boxWidth - textWidth;
+  return (boxWidth - textWidth) / 2;
+}
+
 /** Text extents of a label at output scale, in canvas pixels. */
 function measureLabelText(ctx: DrawContext, label: LabelConfig, scale: number): TextExtents {
   ctx.font = `${label.fontSize * scale}px OperatorMonoBold`;
@@ -115,7 +122,7 @@ function drawLabel(
   scale: number,
   box: TextExtents
 ): void {
-  const { text, color, backgroundColor, backgroundOpacity } = label;
+  const { text, color, backgroundColor, backgroundOpacity, textAlign } = label;
   const fontSize = label.fontSize * scale;
   const x = label.x * scale;
   const y = label.y * scale;
@@ -148,12 +155,12 @@ function drawLabel(
   );
   ctx.fill();
 
-  // Text (always fully opaque), centred in the shared chip
+  // Text (always fully opaque), aligned within the shared chip
   ctx.globalAlpha = 1;
   ctx.fillStyle = color;
   ctx.fillText(
     text,
-    clampedX + (box.width - textWidth) / 2,
+    clampedX + alignedTextX(textAlign, box.width, textWidth),
     clampedY + (box.height - textHeight) / 2 + ascent
   );
 

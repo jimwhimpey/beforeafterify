@@ -1,3 +1,5 @@
+export type TextAlign = 'left' | 'center' | 'right';
+
 export interface LabelConfig {
   text: string;
   x: number;       // x position in canvas pixels (top-left of text)
@@ -7,6 +9,7 @@ export interface LabelConfig {
   backgroundColor: string;
   backgroundOpacity: number; // 0–1
   padding: number;
+  textAlign: TextAlign; // alignment of the text within the shared label chip
 }
 
 /** Measured size of a label's text, in canvas pixels. */

@@ -248,7 +248,8 @@ canvas {
   flex-shrink: 0;
 }
 .field-row input[type="text"],
-.field-row input[type="number"] {
+.field-row input[type="number"],
+.field-row select {
   flex: 1;
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--ink-700);
@@ -260,7 +261,8 @@ canvas {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .field-row input[type="text"]:focus,
-.field-row input[type="number"]:focus {
+.field-row input[type="number"]:focus,
+.field-row select:focus {
   outline: none;
   border-color: var(--after);
   box-shadow: 0 0 0 3px rgba(70, 212, 190, 0.15);
@@ -349,6 +351,10 @@ canvas {
 }
 .style-bar input[type="number"] {
   width: 80px;
+}
+.style-bar select {
+  width: 100px;
+  cursor: pointer;
 }
 .style-bar input[type="range"] {
   width: 110px;

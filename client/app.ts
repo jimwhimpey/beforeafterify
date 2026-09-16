@@ -1,5 +1,7 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
+type TextAlign = 'left' | 'center' | 'right';
+
 interface LabelConfig {
   text: string;
   x: number; // top-left x in canvas pixels
@@ -9,6 +11,7 @@ interface LabelConfig {
   backgroundColor: string;
   backgroundOpacity: number; // 0–1
   padding: number;
+  textAlign: TextAlign; // alignment of the text within the shared label chip
 }
 
 /** Blank margin added around the image, in original image pixels. */
@@ -74,6 +77,7 @@ const state = {
     backgroundColor: '#B51A00',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
+    textAlign: 'center',
   } as LabelConfig,
   label2: {
     text: 'after',
@@ -84,6 +88,7 @@ const state = {
     backgroundColor: '#4F7A28',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
+    textAlign: 'center',
   } as LabelConfig,
   drag: null as DragState | null,
 };
@@ -144,6 +149,13 @@ function getLabelBounds(
 
 function hitTest(mx: number, my: number, b: LabelBounds): boolean {
   return mx >= b.left && mx <= b.right && my >= b.top && my <= b.bottom;
+}
+
+/** Horizontal offset of text within the shared chip, for a given alignment. */
+function alignedTextX(align: TextAlign, boxWidth: number, textWidth: number): number {
+  if (align === 'left') return 0;
+  if (align === 'right') return boxWidth - textWidth;
+  return (boxWidth - textWidth) / 2;
 }
 
 function roundedRectPath(
@@ -225,7 +237,7 @@ function drawPreview(
 
   ctx.globalAlpha = 1;
   ctx.fillStyle = label.color;
-  ctx.fillText(label.text, lx + (box.width - tw) / 2, ly + (box.height - th) / 2 + ascent);
+  ctx.fillText(label.text, lx + alignedTextX(label.textAlign, box.width, tw), ly + (box.height - th) / 2 + ascent);
 
   ctx.restore();
 }
@@ -486,6 +498,7 @@ function setupLabelControls(): void {
     const n = parseInt(v, 10);
     return { padding: Number.isFinite(n) ? Math.max(0, Math.min(200, n)) : DEFAULT_LABEL_PADDING };
   });
+  bind('labelAlign', (v) => ({ textAlign: (v === 'left' || v === 'right' ? v : 'center') as TextAlign }));
 
   // Delay
   const delayEl = document.getElementById('animDelay') as HTMLInputElement;
