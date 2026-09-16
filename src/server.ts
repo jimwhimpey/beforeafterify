@@ -11,8 +11,9 @@ const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
 GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
 
 const LABEL_CORNER_RADIUS = 12; // in canvas pixels
-const CANVAS_BACKGROUND = '#ffffff';
-const NO_EXTEND: CanvasExtend = { top: 0, right: 0, bottom: 0, left: 0 };
+const DEFAULT_CANVAS_BACKGROUND = '#ffffff';
+const NO_EXTEND: CanvasExtend = { top: 0, right: 0, bottom: 0, left: 0, backgroundColor: DEFAULT_CANVAS_BACKGROUND };
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 const UPLOAD_DIR = path.join(os.tmpdir(), 'beforeafterify-uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -60,11 +61,15 @@ function parseExtend(raw: unknown): CanvasExtend {
   try {
     const parsed = JSON.parse(raw) as Partial<Record<keyof CanvasExtend, unknown>>;
     const side = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+    const bg = typeof parsed.backgroundColor === 'string' && HEX_COLOR_RE.test(parsed.backgroundColor)
+      ? parsed.backgroundColor
+      : DEFAULT_CANVAS_BACKGROUND;
     return {
       top: side(parsed.top),
       right: side(parsed.right),
       bottom: side(parsed.bottom),
       left: side(parsed.left),
+      backgroundColor: bg,
     };
   } catch {
     return NO_EXTEND;
@@ -212,7 +217,7 @@ app.post(
       const drawFrame = (image: unknown, label: LabelConfig): DrawContext => {
         const canvas = createCanvas(gifWidth, gifHeight);
         const ctx = canvas.getContext('2d') as unknown as DrawContext;
-        ctx.fillStyle = CANVAS_BACKGROUND;
+        ctx.fillStyle = extend.backgroundColor;
         ctx.fillRect(0, 0, gifWidth, gifHeight);
         ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
         drawLabel(ctx, label, gifWidth, gifHeight, scale, box);

@@ -17,6 +17,7 @@ interface CanvasExtend {
   right: number;
   bottom: number;
   left: number;
+  backgroundColor: string;
 }
 
 interface CanvasSize {
@@ -54,7 +55,7 @@ const PREVIEW_MAX_WIDTH = 560;
 const PREVIEW_MAX_HEIGHT = 420;
 const LABEL_CORNER_RADIUS = 12; // in canvas pixels
 const DEFAULT_LABEL_PADDING = 30;
-const CANVAS_BACKGROUND = '#ffffff';
+const DEFAULT_CANVAS_BACKGROUND = '#ffffff';
 const EXTEND_SIDES = ['top', 'right', 'bottom', 'left'] as const;
 
 // ── App State ─────────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ const state = {
   image1: { file: null, img: null } as ImageState,
   image2: { file: null, img: null } as ImageState,
   delay: 1000,
-  extend: { top: 0, right: 0, bottom: 0, left: 0 } as CanvasExtend,
+  extend: { top: 0, right: 0, bottom: 0, left: 0, backgroundColor: DEFAULT_CANVAS_BACKGROUND } as CanvasExtend,
   label1: {
     text: 'before',
     x: 10,
@@ -194,7 +195,7 @@ function drawPreview(
   canvas.width = w;
   canvas.height = h;
 
-  ctx.fillStyle = CANVAS_BACKGROUND;
+  ctx.fillStyle = state.extend.backgroundColor;
   ctx.fillRect(0, 0, w, h);
   ctx.drawImage(
     img,
@@ -285,6 +286,11 @@ function setupExtendControls(): void {
       redrawCanvas(2);
     });
   }
+  bindColorInput('extendBg', (v) => {
+    state.extend = { ...state.extend, backgroundColor: v };
+    redrawCanvas(1);
+    redrawCanvas(2);
+  });
 }
 
 // ── Canvas interaction ────────────────────────────────────────────────────────

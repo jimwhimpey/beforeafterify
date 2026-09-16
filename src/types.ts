@@ -21,6 +21,7 @@ export interface CanvasExtend {
   right: number;
   bottom: number;
   left: number;
+  backgroundColor: string;
 }
 
 export interface ErrorResponse {
