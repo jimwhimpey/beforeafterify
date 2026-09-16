@@ -29,7 +29,9 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'), {
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+}));
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.get('/fonts/operator-mono-bold.otf', (_req, res) => {
   res.sendFile(FONT_PATH);
