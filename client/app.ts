@@ -57,7 +57,7 @@ interface LabelBounds {
 const PREVIEW_MAX_WIDTH = 560;
 const PREVIEW_MAX_HEIGHT = 420;
 const LABEL_CORNER_RADIUS = 12; // in canvas pixels
-const DEFAULT_LABEL_PADDING = 30;
+const DEFAULT_LABEL_PADDING = 15;
 const DEFAULT_CANVAS_BACKGROUND = '#ffffff';
 const EXTEND_SIDES = ['top', 'right', 'bottom', 'left'] as const;
 
@@ -70,25 +70,25 @@ const state = {
   extend: { top: 0, right: 0, bottom: 0, left: 0, backgroundColor: DEFAULT_CANVAS_BACKGROUND } as CanvasExtend,
   label1: {
     text: 'before',
-    x: 10,
-    y: 10,
-    fontSize: 90,
+    x: 60,
+    y: 60,
+    fontSize: 60,
     color: '#000000',
     backgroundColor: '#B51A00',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
-    textAlign: 'center',
+    textAlign: 'left',
   } as LabelConfig,
   label2: {
     text: 'after',
-    x: 10,
-    y: 10,
-    fontSize: 90,
+    x: 60,
+    y: 60,
+    fontSize: 60,
     color: '#000000',
     backgroundColor: '#4F7A28',
     backgroundOpacity: 0.9,
     padding: DEFAULT_LABEL_PADDING,
-    textAlign: 'center',
+    textAlign: 'left',
   } as LabelConfig,
   drag: null as DragState | null,
 };
@@ -485,7 +485,7 @@ function setupLabelControls(): void {
 
   bindColorInput('labelColor', (v) => applyStyle({ color: v }));
   bind('labelBgOpacity', (v) => ({ backgroundOpacity: parseInt(v, 10) / 100 }));
-  bind('labelSize', (v) => ({ fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 90)) }));
+  bind('labelSize', (v) => ({ fontSize: Math.max(8, Math.min(200, parseInt(v, 10) || 60)) }));
   bind('labelPadding', (v) => {
     const n = parseInt(v, 10);
     return { padding: Number.isFinite(n) ? Math.max(0, Math.min(200, n)) : DEFAULT_LABEL_PADDING };
