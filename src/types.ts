@@ -2,20 +2,14 @@ export type TextAlign = 'left' | 'center' | 'right';
 
 export interface LabelConfig {
   text: string;
-  x: number;       // x position in canvas pixels (top-left of text)
+  x: number;       // anchor x in canvas pixels — which edge of the chip this pins depends on textAlign
   y: number;       // y position in canvas pixels (top of text)
   fontSize: number;
   color: string;
   backgroundColor: string;
   backgroundOpacity: number; // 0–1
   padding: number;
-  textAlign: TextAlign; // alignment of the text within the shared label chip
-}
-
-/** Measured size of a label's text, in canvas pixels. */
-export interface TextExtents {
-  width: number;
-  height: number;
+  textAlign: TextAlign; // which edge (or center) of the chip is pinned to x
 }
 
 /** Blank margin added around the image, in original image pixels. */

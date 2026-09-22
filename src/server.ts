@@ -5,7 +5,7 @@ import GifEncoder from 'gif-encoder-2';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import type { CanvasExtend, LabelConfig, TextAlign, TextExtents } from './types';
+import type { CanvasExtend, LabelConfig, TextAlign } from './types';
 
 const FONT_PATH = path.join(__dirname, '../fonts/OperatorMono-Bold.otf');
 GlobalFonts.register(fs.readFileSync(FONT_PATH), 'OperatorMonoBold');
@@ -78,6 +78,13 @@ function parseExtend(raw: unknown): CanvasExtend {
   }
 }
 
+/** Left edge of the chip's interior (text) box, given where `x` pins it. */
+function alignedBoxX(align: TextAlign, anchorX: number, boxWidth: number): number {
+  if (align === 'left') return anchorX;
+  if (align === 'right') return anchorX - boxWidth;
+  return anchorX - boxWidth / 2;
+}
+
 /** Traces a rounded rectangle, clamping the radius to what the box can fit. */
 function roundedRectPath(
   ctx: DrawContext,
@@ -97,32 +104,12 @@ function roundedRectPath(
   ctx.closePath();
 }
 
-/** Horizontal offset of text within the shared chip, for a given alignment. */
-function alignedTextX(align: TextAlign, boxWidth: number, textWidth: number): number {
-  if (align === 'left') return 0;
-  if (align === 'right') return boxWidth - textWidth;
-  return (boxWidth - textWidth) / 2;
-}
-
-/** Text extents of a label at output scale, in canvas pixels. */
-function measureLabelText(ctx: DrawContext, label: LabelConfig, scale: number): TextExtents {
-  ctx.font = `${label.fontSize * scale}px OperatorMonoBold`;
-  const m = ctx.measureText(label.text);
-  return { width: m.width, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
-}
-
-/**
- * Both frames share `box` — the extents of the widest and tallest of the two
- * labels — so the chips stay identical between frames, with each label's text
- * centred inside.
- */
 function drawLabel(
   ctx: DrawContext,
   label: LabelConfig,
   canvasWidth: number,
   canvasHeight: number,
-  scale: number,
-  box: TextExtents
+  scale: number
 ): void {
   const { text, color, backgroundColor, backgroundOpacity, textAlign } = label;
   const fontSize = label.fontSize * scale;
@@ -139,10 +126,11 @@ function drawLabel(
   const textWidth = metrics.width;
   const ascent = metrics.actualBoundingBoxAscent;
   const textHeight = ascent + metrics.actualBoundingBoxDescent;
+  const boxX = alignedBoxX(textAlign, x, textWidth);
 
   // Clamp to keep the chip inside the canvas (y = top of the chip's text area)
-  const clampedX = Math.max(0, Math.min(x, canvasWidth - box.width - padding * 2));
-  const clampedY = Math.max(0, Math.min(y, canvasHeight - box.height - padding * 2));
+  const clampedX = Math.max(0, Math.min(boxX, canvasWidth - textWidth - padding * 2));
+  const clampedY = Math.max(0, Math.min(y, canvasHeight - textHeight - padding * 2));
 
   // Background (with opacity)
   ctx.globalAlpha = backgroundOpacity ?? 1;
@@ -151,20 +139,16 @@ function drawLabel(
     ctx,
     clampedX - padding,
     clampedY - padding,
-    box.width + padding * 2,
-    box.height + padding * 2,
+    textWidth + padding * 2,
+    textHeight + padding * 2,
     radius
   );
   ctx.fill();
 
-  // Text (always fully opaque), aligned within the shared chip
+  // Text (always fully opaque)
   ctx.globalAlpha = 1;
   ctx.fillStyle = color;
-  ctx.fillText(
-    text,
-    clampedX + alignedTextX(textAlign, box.width, textWidth),
-    clampedY + (box.height - textHeight) / 2 + ascent
-  );
+  ctx.fillText(text, clampedX, clampedY + ascent);
 
   ctx.restore();
 }
@@ -215,21 +199,13 @@ app.post(
       const imageX = Math.round(extend.left * scale);
       const imageY = Math.round(extend.top * scale);
 
-      const measureCtx = createCanvas(1, 1).getContext('2d') as unknown as DrawContext;
-      const extents1 = measureLabelText(measureCtx, label1, scale);
-      const extents2 = measureLabelText(measureCtx, label2, scale);
-      const box: TextExtents = {
-        width: Math.max(extents1.width, extents2.width),
-        height: Math.max(extents1.height, extents2.height),
-      };
-
       const drawFrame = (image: unknown, label: LabelConfig): DrawContext => {
         const canvas = createCanvas(gifWidth, gifHeight);
         const ctx = canvas.getContext('2d') as unknown as DrawContext;
         ctx.fillStyle = extend.backgroundColor;
         ctx.fillRect(0, 0, gifWidth, gifHeight);
         ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-        drawLabel(ctx, label, gifWidth, gifHeight, scale, box);
+        drawLabel(ctx, label, gifWidth, gifHeight, scale);
         return ctx;
       };
 

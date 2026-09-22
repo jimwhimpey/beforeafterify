@@ -4,14 +4,14 @@ type TextAlign = 'left' | 'center' | 'right';
 
 interface LabelConfig {
   text: string;
-  x: number; // top-left x in canvas pixels
+  x: number; // anchor x in canvas pixels — which edge of the chip this pins depends on textAlign
   y: number; // top-left y in canvas pixels
   fontSize: number;
   color: string;
   backgroundColor: string;
   backgroundOpacity: number; // 0–1
   padding: number;
-  textAlign: TextAlign; // alignment of the text within the shared label chip
+  textAlign: TextAlign; // which edge (or center) of the chip is pinned to x
 }
 
 /** Blank margin added around the image, in original image pixels. */
@@ -123,11 +123,11 @@ function measureLabelText(
   return { width: m.width, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
 }
 
-/** Both chips size to the widest and tallest label so they don't resize between frames. */
-function getLabelBox(ctx: CanvasRenderingContext2D, scale: number): TextExtents {
-  const a = measureLabelText(ctx, state.label1, scale);
-  const b = measureLabelText(ctx, state.label2, scale);
-  return { width: Math.max(a.width, b.width), height: Math.max(a.height, b.height) };
+/** Left edge of the chip's interior (text) box, given where `x` pins it. */
+function alignedBoxX(align: TextAlign, anchorX: number, boxWidth: number): number {
+  if (align === 'left') return anchorX;
+  if (align === 'right') return anchorX - boxWidth;
+  return anchorX - boxWidth / 2;
 }
 
 function getLabelBounds(
@@ -135,9 +135,9 @@ function getLabelBounds(
   scale: number,
   ctx: CanvasRenderingContext2D
 ): LabelBounds {
-  const box = getLabelBox(ctx, scale);
+  const box = measureLabelText(ctx, label, scale);
   const p = label.padding * scale;
-  const lx = label.x * scale;
+  const lx = alignedBoxX(label.textAlign, label.x * scale, box.width);
   const ly = label.y * scale;
   return {
     left: lx - p,
@@ -149,13 +149,6 @@ function getLabelBounds(
 
 function hitTest(mx: number, my: number, b: LabelBounds): boolean {
   return mx >= b.left && mx <= b.right && my >= b.top && my <= b.bottom;
-}
-
-/** Horizontal offset of text within the shared chip, for a given alignment. */
-function alignedTextX(align: TextAlign, boxWidth: number, textWidth: number): number {
-  if (align === 'left') return 0;
-  if (align === 'right') return boxWidth - textWidth;
-  return (boxWidth - textWidth) / 2;
 }
 
 function roundedRectPath(
@@ -220,24 +213,23 @@ function drawPreview(
   // Draw label
   const p = label.padding * scale;
   ctx.save();
-  const box = getLabelBox(ctx, scale);
   ctx.font = `${label.fontSize * scale}px 'OperatorMonoBold'`;
   ctx.textBaseline = 'alphabetic';
   const m = ctx.measureText(label.text);
   const tw = m.width;
   const ascent = m.actualBoundingBoxAscent;
   const th = ascent + m.actualBoundingBoxDescent;
-  const lx = label.x * scale;
+  const lx = alignedBoxX(label.textAlign, label.x * scale, tw);
   const ly = label.y * scale;
 
   ctx.globalAlpha = label.backgroundOpacity;
   ctx.fillStyle = label.backgroundColor;
-  roundedRectPath(ctx, lx - p, ly - p, box.width + p * 2, box.height + p * 2, LABEL_CORNER_RADIUS * scale);
+  roundedRectPath(ctx, lx - p, ly - p, tw + p * 2, th + p * 2, LABEL_CORNER_RADIUS * scale);
   ctx.fill();
 
   ctx.globalAlpha = 1;
   ctx.fillStyle = label.color;
-  ctx.fillText(label.text, lx + alignedTextX(label.textAlign, box.width, tw), ly + (box.height - th) / 2 + ascent);
+  ctx.fillText(label.text, lx, ly + ascent);
 
   ctx.restore();
 }
